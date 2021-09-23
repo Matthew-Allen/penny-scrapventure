@@ -4,6 +4,7 @@ local Dirt = Diggable:extend()
 
 function Dirt:new(x, y, diggableTable)
     Dirt.super.new(self,x, y, diggableTable)
+    self.name = "dirt"
     self.diggableType = "dirt"
 end
 

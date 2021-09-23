@@ -1,16 +1,149 @@
+local Object = require "lib/classic"
 local Entity = require "entities/entity"
-local Animation = require "animation"
+local Animations = require "util/animations"
+local dbg = require "lib/debugger"
 
+-- State machine code
+local State = Object:extend()
+function State:update(dt) end -- Dummy update function
+
+
+local AirState = State:extend()
+local WalkingState = State:extend()
+local DiggingState = State:extend()
+local HoverState = State:extend()
+function WalkingState:new(parent)
+    self.stateName = "WalkingState"
+    self.parent = parent
+    parent.currentAnimation = Animations.penny_standing
+end
+function WalkingState:update(dt)
+    local parent = self.parent
+
+    parent:runImpulse(dt)
+    if parent.velocity.x < 0 then
+        parent.facing = "left"
+        parent.animationSpeed = 10
+    elseif parent.velocity.x > 0 then
+        parent.facing = "right"
+        parent.animationSpeed = 10
+    end
+
+    if parent.velocity.x == 0 then
+        parent.currentAnimation = Animations.penny_standing
+    else
+        parent.currentAnimation = Animations.penny_walk
+    end
+    if parent.velocity.y ~= 0 then
+        parent.currentState = AirState(parent)
+    end
+
+    if love.keyboard.isDown("c") then
+        local diggableFacing, digTarget = parent:probeDiggables()
+        if diggableFacing ~= nil then
+            self.parent.currentState = DiggingState(parent, diggableFacing, digTarget)
+        end
+    end
+end
+
+function AirState:new(parent)
+    self.stateName = "AirState"
+    self.parent = parent
+    self.fallTime = 0
+    parent.currentAnimation = Animations.penny_jump
+end
+function AirState:update(dt)
+    local parent = self.parent
+    parent:runImpulse(dt)
+    self.fallTime = self.fallTime + dt
+    if parent.velocity.x < 0 then
+        parent.facing = "left"
+    elseif parent.velocity.x > 0 then
+        parent.facing = "right"
+    end
+
+    if parent.velocity.y > 0 then
+        self.fallTime = 0
+        parent.animationSpeed = 10
+        parent.currentAnimation = Animations.penny_jump
+    elseif parent.velocity.y < 0 then
+        self.fallTime = self.fallTime + dt
+        if self.fallTime > .03 then
+            parent.animationSpeed = 0
+        end
+        parent.currentAnimation = Animations.penny_fall
+    else
+        parent.currentState = WalkingState(parent, parent.facing)
+    end
+    if love.keyboard.isDown("c") then
+        local diggableFacing, digTarget = parent:probeDiggables()
+        if diggableFacing ~= nil then
+            self.parent.currentState = DiggingState(parent, diggableFacing, digTarget)
+        end
+    end
+    if self.parent.keysPressed["x"] == true then
+        self.parent.currentState = HoverState(self.parent)
+    end
+end
+
+function HoverState:new(parent)
+    self.parent = parent
+    self.timeHovering = 0
+    parent.currentAnimation = Animations.penny_startHover
+end
+
+function HoverState:update(dt)
+    self.timeHovering = self.timeHovering + dt
+    self.parent:runHover(dt)
+    if self.timeHovering >= .35 then
+        self.parent.currentAnimation = Animations.penny_hover
+    end
+    if self.timeHovering >= .5 and self.parent.keysPressed["x"] then
+        self.parent.currentState = WalkingState(self.parent)
+    end
+end
+
+function DiggingState:new(parent, digDirection, target)
+    self.stateName= "DiggingState"
+    self.parent = parent
+    self.digTime = 0
+    self.target = target
+    self.stopDigMessage = false
+    parent.animationSpeed = 10
+    if digDirection == "left" or digDirection == "right" then
+        parent.currentAnimation = Animations.penny_drill
+    elseif digDirection == "up" then
+        parent.currentAnimation = Animations.penny_drillUp
+    else
+        parent.currentAnimation = Animations.penny_drillDown
+    end
+
+
+    messageQueue:send(messageQueue:newMessage(parent, target, "startDigging"))
+end
+
+function DiggingState:update(dt)
+    if not love.keyboard.isDown("c") or self.stopDigMessage then
+        if self.parent.facing ~= "down" and self.parent.facing ~= "up" then
+            self.parent.currentState = WalkingState(self.parent, self.parent.facing)
+        else
+            self.parent.currentState = WalkingState(self.parent, "right")
+        end
+        messageQueue:send(messageQueue:newMessage(self.parent, self.target, "stopDigging"))
+    end
+    self.digTime = self.digTime + dt
+end
 
 local Player = Entity:extend()
 
 function Player:new(x, y)
+    Player.super:new(x, y, 9, 31)
+    self.messages = {}
+    self.keysPressed = {}
     self.entityType = "Player"
     self.lastBullet = 1000
 
     --World data init
-    self.w = 9
-    self.h = 31
     self.x = x
     self.y = y
     self.collisions = {}
@@ -23,37 +156,23 @@ function Player:new(x, y)
     self.maxVelocity = {}
     self.maxVelocity.x = 150
     self.maxVelocity.y = 500
-    self.moveSpeed = 50
     self.acceleration = 20
     self.onGround = false
+    self.facing = "right"
 
     -- Entity state data
-    self.digging = false
-    self.digTarget = nil
-    self.digCooldown = 0
-    self.hovering = false
-    self.hoverTimeout = 0
-    self.hoverTransitionTimer = 0
     self.collectedScrap = 0
     self.collectedResources = 0
+    self.keyCooldown = 0
+    self.currentAnimation = Animations.penny_standing
 
-    --Animations data
-    self.facing = "right"
-    self.animations = {}
-    local penny_sheet = spriteTable["penny_sheet.png"]
-    self.animations.stand = Animation(penny_sheet, 10, 9, 0, 0, 32, 32)
-    self.animations.walk = Animation(penny_sheet, 10, 9, 18, 21, 32, 32)
-    self.animations.jump = Animation(penny_sheet, 10, 9, 27, 27, 32, 32)
-    self.animations.fall = Animation(penny_sheet, 10, 9, 45, 47, 32, 32)
-    self.animations.drillDown = Animation(penny_sheet, 10, 9, 54, 58, 32, 32)
-    self.animations.drillRight = Animation(penny_sheet, 10, 9, 63, 67, 32, 32)
-    self.animations.drillLeft = Animation(penny_sheet, 10, 9, 72, 76, 32, 32)
-    self.animations.drillUp = Animation(penny_sheet, 10, 9, 81, 85, 32, 32)
-    self.animations.startHover = Animation(penny_sheet, 10, 9, 36, 40, 32, 32)
-    self.animations.hover = Animation(penny_sheet, 10, 9, 41, 45, 32, 32)
+    self.currentState = WalkingState(self)
+end
 
-    self.currentAnimation = "standing"
-    self.facing = "right"
+function Player:handleKeyPress(key)
+    if self.keysPressed ~= nil then
+        self.keysPressed[key] = true
+    end
 end
 
 local function sign(number)
@@ -61,6 +180,27 @@ local function sign(number)
         return 1
     else
         return -1
+    end
+end
+
+function Player:probeDiggables()
+    for _, collision in ipairs(self.collisions) do
+        local entity = collision.other
+        if entity.entityType == "diggable" then
+            if self.y + (self.h/2) > entity.y and self.y + (self.h/2) < entity.y+entity.h then
+                if entity.x > self.x then
+                    return "right", entity
+                else
+                    return "left", entity
+                end
+            elseif self.y+self.h <= entity.y and love.keyboard.isDown("down") then
+                return "down", entity
+            elseif self.y >= entity.y+entity.h and love.keyboard.isDown("up") then
+                return "up", entity
+            else
+                return nil, entity
+            end
+        end
     end
 end
 
@@ -181,150 +321,34 @@ end
 
 function Player:update(dt)
 
-    if love.keyboard.isDown("x") and self.hovering == false and self.hoverTimeout < 0 then
-        self.hoverTransitionTimer = .35
-        self.hovering = true
-        self.hoverTimeout = .5
-    elseif love.keyboard.isDown("x") and self.hovering == true and self.hoverTimeout < 0 then
-        self.hovering = false
-        self.hoverTimeout = .5
-    end
-    self.hoverTimeout = self.hoverTimeout - dt
-    self.hoverTransitionTimer = self.hoverTransitionTimer - dt
-    if self.hovering then
-        self:runHover(dt)
-    end
-
-    if self.digging == false and self.hovering == false then
-        self:runImpulse(dt)
-        self.digCooldown = self.digCooldown - dt
-    end
-    if not (self.digTarget == nil) then
-        if self.digTarget.alive == false or not love.keyboard.isDown("c") then
-            local stopDigMessage = messageQueue:newMessage(self, self.digTarget, "stopDigging", nil)
-            messageQueue:send(stopDigMessage)
-            self.digTarget = nil
-            self.digging = false
-            self.digCooldown = .25
-        end
-    end
-    for _, collision in ipairs(self.collisions) do
-        if love.keyboard.isDown("c") then
-            local digDirection = self:canDig(collision.other)
-            if digDirection ~= "none" then
-                self.digging = true
-                self.digTarget = collision.other
-                self.digDirection = digDirection
-                local digMessage = messageQueue:newMessage(self, collision.other, "startDigging", nil)
-                messageQueue:send(digMessage)
-            end
-        end
-    end
-
-    -- Update animation states
-    if self.digging == true then
-        if self.digDirection == "side" then
-            if self.facing == "left" then
-                self.currentAnimation = "drilling_left"
-            else
-                self.currentAnimation = "drilling_right"
-            end
-        elseif self.digDirection == "down" then
-            self.currentAnimation = "drilling_down"
-        elseif self.digDirection == "up" then
-            self.currentAnimation = "drilling_up"
-        end
-    else
-        if self.velocity.x > 0 then
-            self.facing = "right"
-        elseif self.velocity.x < 0 then
-            self.facing = "left"
-        end
-        if self.onGround == false then
-            if self.velocity.y > 0 then
-                self.currentAnimation = "jumping"
-            else
-                self.currentAnimation = "falling"
-            end
-        elseif self.velocity.x == 0 and self.onGround == true then
-            self.currentAnimation = "standing"
-        else
-            self.currentAnimation = "walking"
-        end
-    end
-
+    self.currentState:update(dt)
     -- Ensure that collisions table is emptied even if we don't make another move call
     self.collisions = {}
+    self.messages = {}
+    self.keysPressed = {} -- Clear keys pressed after every iteration because they should only register once.
 end
 
 function Player:onMessage(message)
+    table.insert(self.messages, message)
     if message.messageType == "getScrap" then
         self.collectedScrap = self.collectedScrap + message.data
         print("Current scrap is now: " .. self.collectedScrap)
+    end
+    if message.messageType == "blockBreak" then
+        self.currentState.stopDigMessage = true
     end
 end
 
 function Player:draw(dt)
 
-    local rightOffset = -12
-    local leftOffset = 22
-    local yOffset = -1
-
-    if self.hovering then
-        if self.facing == "right" then
-            if self.hoverTransitionTimer > 0  then
-                self.animations.startHover:play(self.x+rightOffset, self.y+yOffset, 20, dt)
-            else
-                self.animations.hover:play(self.x+rightOffset, self.y+yOffset, 10, dt)
-            end
-        else
-            if self.hoverTransitionTimer > 0 then
-                self.animations.startHover:play(self.x+leftOffset, self.y+yOffset, 20, dt, -1, 1)
-            else
-                self.animations.hover:play(self.x+leftOffset, self.y+yOffset, 10, dt, -1, 1)
-            end
-        end
-    elseif self.currentAnimation == "standing" then
-        if self.facing == "right" then
-            self.animations.stand:play(self.x+rightOffset, self.y+yOffset, 10, dt)
-        else
-            self.animations.stand:play(self.x+leftOffset, self.y+yOffset, 10, dt, -1, 1)
-        end
-    elseif self.currentAnimation == "walking" then
-        if self.facing == "right" then
-            self.animations.walk:play(self.x+rightOffset, self.y+yOffset, 10, dt)
-        else
-            self.animations.walk:play(self.x+leftOffset, self.y+yOffset, 10, dt, -1, 1)
-        end
-    elseif self.currentAnimation == "jumping" then
-        if self.facing == "right" then
-            self.animations.jump:play(self.x+rightOffset, self.y+yOffset, 10, dt)
-        else
-            self.animations.jump:play(self.x+leftOffset, self.y+yOffset, 10, dt, -1, 1)
-        end
-    elseif self.currentAnimation == "drilling_down" then
-        if self.facing == "right" then
-            self.animations.drillDown:play(self.x+rightOffset, self.y+yOffset, 10, dt)
-        else
-            self.animations.drillDown:play(self.x+leftOffset, self.y+yOffset, 10, dt, -1, 1)
-        end
-    elseif self.currentAnimation == "drilling_left" then
-        self.animations.drillLeft:play(self.x+0, self.y+yOffset, 10, dt)
-    elseif self.currentAnimation == "drilling_right" then
-        self.animations.drillRight:play(self.x-22, self.y+yOffset, 10, dt)
-    elseif self.currentAnimation == "drilling_up" then
-        if self.facing == "right" then
-            self.animations.drillUp:play(self.x+rightOffset, self.y+yOffset, 10, dt)
-        else
-            self.animations.drillUp:play(self.x+leftOffset, self.y+yOffset, 10, dt, -1, 1)
-        end
-    elseif self.currentAnimation == "falling" then
-        if self.facing == "right" then
-            self.animations.fall:play(self.x+rightOffset, self.y+yOffset, 10, dt)
-        else
-            self.animations.fall:play(self.x+leftOffset, self.y+yOffset, 10, dt, -1, 1)
-        end
+    local xScale
+    if self.facing == "right" then
+        xScale = 1
+    else
+        xScale = -1
     end
+
+    self.currentAnimation:play(self.x+4, self.y, xScale, 1, dt)
 end
 
 return Player

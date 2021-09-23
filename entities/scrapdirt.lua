@@ -5,6 +5,7 @@ local ScrapDirt = Diggable:extend()
 function ScrapDirt:new(x, y, diggableTable)
     ScrapDirt.super.new(self,x, y, diggableTable)
     self.diggableType = "scrapdirt"
+    self.name = "scrapdirt"
 end
 
 function ScrapDirt:die()

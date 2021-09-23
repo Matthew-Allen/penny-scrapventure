@@ -1,13 +1,16 @@
-local bump = require "bump"
+package.path = './mylib/?.lua;' .. package.path
+local bump = require "lib/bump"
 local Player = require "entities/player"
 local DiggableDirt = require "entities/dirt"
 local DiggableStone = require "entities/stone"
 local DiggableGrassDirt = require "entities/grassdirt"
 local DiggableScrapDirt = require "entities/scrapdirt"
 local DiggableScrapStone = require "entities/scrapstone"
-local Camera = require "camera"
-local Map = require "map"
-local MessageQueue = require "messagequeue"
+local Camera = require "util/camera"
+local Map = require "util/map"
+local MessageQueue = require "util/messagequeue"
+local AnimationManager = require "util/animations"
+local dbg = require "lib/debugger"
 
 spriteTable = {}
 messageQueue = MessageQueue()
@@ -88,6 +91,7 @@ function love.load()
     love.graphics.setDefaultFilter("nearest")
     love.graphics.setBackgroundColor(135/255, 206/255, 235/255, 1)
     loadSprites("assets/sprites", spriteTable)
+    AnimationManager:init(spriteTable)
     local newPlayer = Player(1000,1150)
     player = newPlayer
     spawn(newPlayer)
@@ -110,6 +114,10 @@ function love.keypressed(key)
     end
     if key == "escape" then
         love.event.quit()
+    end
+    print(key)
+    for _, entity in ipairs(entities) do
+        entity:handleKeyPress(key)
     end
 end
 

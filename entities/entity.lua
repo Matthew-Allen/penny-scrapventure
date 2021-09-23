@@ -1,4 +1,4 @@
-local Object = require "classic"
+local Object = require "lib/classic"
 
 -- Entity class to serve as a basis for other entities within the game system
 -- All entities must have x and y coordinates, bounding rect dimensions, an update function, and a draw function
@@ -6,8 +6,8 @@ local Object = require "classic"
 local Entity = Object:extend()
 
 Entity.alive = true
-Entity.entityType = "generic"
 function Entity:new(x, y, w, h)
+    Entity.entityType = "generic"
     self.name = "DefaultEntity"
     self.x = x
     self.y = y
@@ -23,6 +23,9 @@ function Entity:update(dt)
 end
 
 function Entity:draw(dt)
+end
+
+function Entity:handleKeyPress(key)
 end
 
 function Entity:onMessage(message)

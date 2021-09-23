@@ -5,6 +5,7 @@ local Stone = Diggable:extend()
 function Stone:new(x, y, diggableTable)
     Stone.super.new(self, x, y, diggableTable)
     self.diggableType = "stone"
+    self.name = "stone"
 end
 
 function Stone:draw(dt)

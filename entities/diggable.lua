@@ -2,10 +2,10 @@ local Entity = require "entities/entity"
 
 local Diggable = Entity:extend()
 
-Diggable.entityType = "diggable"
 Diggable.beingDug = false
 Diggable.digTime = 0
 function Diggable:new(x, y, diggableTable)
+    self.entityType = "diggable"
     self.index = {}
     self.index.x = x
     self.index.y = y
@@ -26,12 +26,13 @@ function Diggable:update(dt)
     end
 
     if self.digTime > 1 then
-        self.alive = false
+        messageQueue:send(messageQueue:newMessage(self, self.digger, "blockBreak"))
         self:die()
     end
 end
 
 function Diggable:die()
+    self.alive = false
 end
 
 function Diggable:onMessage(message)

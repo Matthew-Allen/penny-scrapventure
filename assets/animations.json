@@ -1,0 +1,110 @@
+[
+    {
+        "animationName": "penny_standing",
+        "spriteSheetName": "penny_sheet",
+        "rows": 10,
+        "cols": 9,
+        "startFrame": 0,
+        "endFrame": 0,
+        "frameWidth": 32,
+        "frameHeight": 32,
+        "xOffset": 22,
+        "yOffset": -12
+    },
+    {
+        "animationName": "penny_walk",
+        "spriteSheetName": "penny_sheet",
+        "rows": 10,
+        "cols": 9,
+        "startFrame": 18,
+        "endFrame": 21,
+        "frameWidth": 32,
+        "frameHeight": 32,
+        "xOffset": 22,
+        "yOffset": -12
+    },
+    {
+        "animationName": "penny_jump",
+        "spriteSheetName": "penny_sheet",
+        "rows": 10,
+        "cols": 9,
+        "startFrame": 27,
+        "endFrame": 27,
+        "frameWidth": 32,
+        "frameHeight": 32,
+        "xOffset": 22,
+        "yOffset": -12
+    },
+    {
+        "animationName": "penny_fall",
+        "spriteSheetName": "penny_sheet",
+        "rows": 10,
+        "cols": 9,
+        "startFrame": 45,
+        "endFrame": 47,
+        "frameWidth": 32,
+        "frameHeight": 32,
+        "xOffset": 22,
+        "yOffset": -12
+    },
+    {
+        "animationName": "penny_drill",
+        "spriteSheetName": "penny_sheet",
+        "rows": 10,
+        "cols": 9,
+        "startFrame": 63,
+        "endFrame": 67,
+        "frameWidth": 32,
+        "frameHeight": 32,
+        "xOffset": 0,
+        "yOffset": 0
+    },
+    {
+        "animationName": "penny_drillUp",
+        "spriteSheetName": "penny_sheet",
+        "rows": 10,
+        "cols": 9,
+        "startFrame": 81,
+        "endFrame": 85,
+        "frameWidth": 32,
+        "frameHeight": 32,
+        "xOffset": 0,
+        "yOffset": 0
+    },
+    {
+        "animationName": "penny_drillDown",
+        "spriteSheetName": "penny_sheet",
+        "rows": 10,
+        "cols": 9,
+        "startFrame": 54,
+        "endFrame": 58,
+        "frameWidth": 32,
+        "frameHeight": 32,
+        "xOffset": 0,
+        "yOffset": 0
+    },
+    {
+        "animationName": "penny_startHover",
+        "spriteSheetName": "penny_sheet",
+        "rows": 10,
+        "cols": 9,
+        "startFrame": 36,
+        "endFrame": 40,
+        "frameWidth": 32,
+        "frameHeight": 32,
+        "xOffset": 0,
+        "yOffset": 0
+    },
+    {
+        "animationName": "penny_hover",
+        "spriteSheetName": "penny_sheet",
+        "rows": 10,
+        "cols": 9,
+        "startFrame": 41,
+        "endFrame": 45,
+        "frameWidth": 32,
+        "frameHeight": 32,
+        "xOffset": 0,
+        "yOffset": 0
+    }
+]
